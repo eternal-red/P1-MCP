@@ -101,17 +101,17 @@ Forecast: {period['detailedForecast']}
 
 @mcp.tool()
 async def get_available_times(start_date: str, end_date: str, duration: int=30) -> dict:
-        """Get available booking times from the calendar API.
+        """Get available booking, scheduling, meeting, or demo times from the calendar API.
     
         Args:
             start_date: Start date in ISO 8601 format (e.g. "2025-08-13T00:00:00Z")
-            end_date: End date in ISO 8601 format, must be at least 1 day after start date, (e.g. "2025-09-20T00:00:00Z")
+            end_date: End date in ISO 8601 format, must be at least 1 day after start date, (e.g. "2025-08-20T00:00:00Z")
             duration: Duration of the booking in minutes (default is 30)
         """
         return await available_times(start_date, end_date, duration)
 @mcp.tool()
 async def post_book_meeting(name: str, email: str, phone: str, start_time: str) -> dict:
-    """Book a meeting using the calendar API.
+    """Book a meeting, demo, or appointment using the calendar API.
     
     Args:
         name: Name of the attendee

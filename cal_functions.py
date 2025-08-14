@@ -14,7 +14,7 @@ IANA time zone identifier
 '''
 
 ## get times ##
-def available_times(start_date: str, end_date: str, duration: int = 30) -> dict:
+async def available_times(start_date: str, end_date: str, duration: int = 30) -> dict:
     url = "https://api.cal.com/v2/slots"
     querystring = {
         "start": start_date,
@@ -32,7 +32,7 @@ def available_times(start_date: str, end_date: str, duration: int = 30) -> dict:
     response.raise_for_status()  # raises if status != 200
     return response.json()
 ## book meeting ##
-def book_meeting(name: str, email: str, phone: str, start_time: str):
+async def book_meeting(name: str, email: str, phone: str, start_time: str):
     url = "https://api.cal.com/v2/bookings"
     payload = {
         "start": start_time,
