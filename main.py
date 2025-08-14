@@ -105,7 +105,7 @@ async def get_available_times(start_date: str, end_date: str, duration: int=30) 
     
         Args:
             start_date: Start date in ISO 8601 format (e.g. "2025-08-13T00:00:00Z")
-            end_date: End date in ISO 8601 format (e.g. "2025-08-20T00:00:00Z")
+            end_date: End date in ISO 8601 format, must be at least 1 day after start date, (e.g. "2025-09-20T00:00:00Z")
             duration: Duration of the booking in minutes (default is 30)
         """
         return await available_times(start_date, end_date, duration)
