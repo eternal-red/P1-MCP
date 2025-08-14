@@ -2,3 +2,6 @@ fastmcp
 uvicorn
 httpx
 requests
+numpy
+sentence-transformers
+fastmcp
