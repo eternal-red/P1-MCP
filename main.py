@@ -2,7 +2,7 @@
 
 import argparse
 from typing import Any
-
+from cal_functions import available_times, book_meeting
 import httpx
 import uvicorn
 
@@ -99,9 +99,28 @@ Forecast: {period['detailedForecast']}
 
     return "\n---\n".join(forecasts)
 
-
-import os
+@mcp.tool()
+async def get_available_times(start_date: str, end_date: str, duration: int=30) -> dict:
+        """Get available booking times from the calendar API.
+    
+        Args:
+            start_date: Start date in ISO 8601 format (e.g. "2025-08-13T00:00:00Z")
+            end_date: End date in ISO 8601 format (e.g. "2025-08-20T00:00:00Z")
+            duration: Duration of the booking in minutes (default is 30)
+        """
+        return await available_times(start_date, end_date, duration)
+@mcp.tool()
+async def post_book_meeting(name: str, email: str, phone: str, start_time: str) -> dict:
+    """Book a meeting using the calendar API.
+    
+    Args:
+        name: Name of the attendee
+        email: Email address of the attendee
+        phone: Phone number of the attendee
+        start_time: Start time of the meeting in ISO 8601 format (e.g. "2025-08-14T15:00:00Z")
+    """
+    return await book_meeting(name, email, phone, start_time)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", "8123"))  # Railway injects PORT
+    port = 8080  
     uvicorn.run(mcp.streamable_http_app, host="0.0.0.0", port=port)
