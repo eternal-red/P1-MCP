@@ -111,7 +111,7 @@ async def get_available_times(start_date: str, end_date: str, duration: int=30) 
         return await available_times(start_date, end_date, duration)
 @mcp.tool()
 async def post_book_meeting(name: str, email: str, phone: str, start_time: str) -> dict:
-    """Book a meeting, demo, or appointment using the calendar API.
+    """Book a meeting, demo, or appointment using the calendar API. You must have available times first. You must also have all required fields filled out.
     
     Args:
         name: Name of the attendee
