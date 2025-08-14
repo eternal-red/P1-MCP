@@ -1,3 +1,8 @@
+'''
+This file is used to prepare a singular PDF document for RAG
+The document should be less than 10K words
+'''
+
 import json
 import numpy as np
 from pathlib import Path

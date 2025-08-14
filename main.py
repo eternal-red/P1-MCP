@@ -1,104 +1,22 @@
-"""Weather tools for MCP Streamable HTTP server using NWS API."""
+"""KB and external function call tools for MCP Streamable HTTP server."""
 
 import argparse
-from typing import Any
-from cal_functions import available_times, book_meeting
-import httpx
+from typing import List, Dict, Any
 import uvicorn
-
 from mcp.server.fastmcp import FastMCP
+from logical_functions.cal_functions import available_times, book_meeting
+from logical_functions.rag_functions import (
+    start_encoder, search_rag, get_chunk_logic, build_prompt_logic
+)
+
 
 
 # Initialize FastMCP server for Weather tools.
 # If json_response is set to True, the server will use JSON responses instead of SSE streams
 # If stateless_http is set to True, the server uses true stateless mode (new transport per request)
-mcp = FastMCP(name="weather", json_response=False, stateless_http=False)
+mcp = FastMCP(name="PeregrineOne MCP server", json_response=False, stateless_http=False)
 
-# Constants
-NWS_API_BASE = "https://api.weather.gov"
-USER_AGENT = "weather-app/1.0"
-
-
-async def make_nws_request(url: str) -> dict[str, Any] | None:
-    """Make a request to the NWS API with proper error handling."""
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/geo+json"}
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, headers=headers, timeout=30.0)
-            response.raise_for_status()
-            return response.json()
-        except Exception:
-            return None
-
-
-def format_alert(feature: dict) -> str:
-    """Format an alert feature into a readable string."""
-    props = feature["properties"]
-    return f"""
-Event: {props.get('event', 'Unknown')}
-Area: {props.get('areaDesc', 'Unknown')}
-Severity: {props.get('severity', 'Unknown')}
-Description: {props.get('description', 'No description available')}
-Instructions: {props.get('instruction', 'No specific instructions provided')}
-"""
-
-
-@mcp.tool()
-async def get_alerts(state: str) -> str:
-    """Get weather alerts for a US state.
-
-    Args:
-        state: Two-letter US state code (e.g. CA, NY)
-    """
-    url = f"{NWS_API_BASE}/alerts/active/area/{state}"
-    data = await make_nws_request(url)
-
-    if not data or "features" not in data:
-        return "Unable to fetch alerts or no alerts found."
-
-    if not data["features"]:
-        return "No active alerts for this state."
-
-    alerts = [format_alert(feature) for feature in data["features"]]
-    return "\n---\n".join(alerts)
-
-
-@mcp.tool()
-async def get_forecast(latitude: float, longitude: float) -> str:
-    """Get weather forecast for a location.
-
-    Args:
-        latitude: Latitude of the location
-        longitude: Longitude of the location
-    """
-    # First get the forecast grid endpoint
-    points_url = f"{NWS_API_BASE}/points/{latitude},{longitude}"
-    points_data = await make_nws_request(points_url)
-
-    if not points_data:
-        return "Unable to fetch forecast data for this location."
-
-    # Get the forecast URL from the points response
-    forecast_url = points_data["properties"]["forecast"]
-    forecast_data = await make_nws_request(forecast_url)
-
-    if not forecast_data:
-        return "Unable to fetch detailed forecast."
-
-    # Format the periods into a readable forecast
-    periods = forecast_data["properties"]["periods"]
-    forecasts = []
-    for period in periods[:5]:  # Only show next 5 periods
-        forecast = f"""
-{period['name']}:
-Temperature: {period['temperature']}°{period['temperatureUnit']}
-Wind: {period['windSpeed']} {period['windDirection']}
-Forecast: {period['detailedForecast']}
-"""
-        forecasts.append(forecast)
-
-    return "\n---\n".join(forecasts)
-
+### CAL.com Tools ###
 @mcp.tool()
 async def get_available_times(start_date: str, end_date: str, duration: int=30) -> dict:
         """Get available booking, scheduling, meeting, or demo times from the calendar API.
@@ -121,6 +39,54 @@ async def post_book_meeting(name: str, email: str, phone: str, start_time: str) 
     """
     return await book_meeting(name, email, phone, start_time)
 
+### Knowledge Base Tools ###
+@mcp.tool()
+async def search_chunks(query: str, k: int = 4) -> List[Dict[str, Any]]:
+    """
+    Perform a semantic vector search over all cached document chunks and return the top-k most relevant results.
+
+    Args:
+        query: The search query string to match against the document chunks.
+        k: The number of top results to return (default is 4).
+
+    Returns:
+        A list of dictionaries, each containing:
+            id: The integer index of the chunk in the cache.
+            score: The cosine similarity score (float) between the query and the chunk.
+            preview: A short preview of the chunk's text (str).
+    """
+    return search_rag(query, k)
+
+@mcp.tool()
+async def get_chunk(id: int) -> Dict[str, Any]:
+    """
+    Retrieve the full text and metadata for a specific document chunk by its id.
+
+    Args:
+        id: The integer index of the chunk to retrieve (must be within range).
+
+    Returns:
+        A dictionary containing:
+            id: The integer index of the chunk.
+            text: The full text content of the chunk (str).
+            length: The number of characters in the chunk (int).
+        If the id is out of range, returns a dictionary with an 'error' key and message.
+    """
+    return get_chunk_logic(id)
+
+@mcp.tool()
+async def build_prompt(question: str, chunk_ids: List[int]) -> str:
+    """
+    Construct a RAG prompt using the full text of selected document chunks and a user question.
+    Args:
+        question: The user question to be answered using the provided context.
+        chunk_ids: A list of integer chunk ids to include as context in the prompt.
+    Returns:
+        A string containing the formatted prompt, which includes the concatenated text of the selected chunks and the question, instructing the model to answer using only the provided context.
+    """
+    return build_prompt_logic(question, chunk_ids)
+
 if __name__ == "__main__":
     port = 8080  
+    start_encoder()  # Start encoder at server startup to reduce latency
     uvicorn.run(mcp.streamable_http_app, host="0.0.0.0", port=port)
